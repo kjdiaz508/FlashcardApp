@@ -13,12 +13,12 @@ sealed class Routes {
     data object Create
 
     @Serializable
+    data object Settings
+
+    @Serializable
     data class Deck(
         val deckId: Int
     )
-
-    @Serializable
-    data object Settings
 
     @Serializable
     data class Review(
