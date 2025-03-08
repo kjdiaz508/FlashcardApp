@@ -27,84 +27,76 @@ class FlashcardRepository(
         "Flashcard.db"
     ).addCallback(databaseCallback).build()
 
-    private val deckDao = database.deckDao()
+    private val cardSetDao = database.cardSetDao()
     private val flashcardDao = database.flashcardDao()
 
-    fun getDeck(deckId: Long) = deckDao.getDeck(deckId)
+    fun getCardSet(cardSetId: Long) = cardSetDao.getCardSet(cardSetId)
 
-    fun getDecks() = deckDao.getAllDecks()
+    fun getCardSets() = cardSetDao.getAllCardSets()
 
-    fun createDeck(deck: Deck) {
-        if (deck.name.trim() != "") {
-            CoroutineScope(Dispatchers.IO).launch {
-                deck.id = deckDao.createDeck(deck)
-            }
-        }
+    suspend fun createCardSet(cardSet: CardSet): Long {
+        val id = cardSetDao.createCardSet(cardSet)
+        cardSet.id = id
+        return id
     }
 
-    fun deleteDeck(deck: Deck) {
-        CoroutineScope(Dispatchers.IO).launch {
-            deckDao.deleteDeck(deck)
-        }
+    suspend fun deleteCardSet(cardSet: CardSet) {
+        cardSetDao.deleteCardSet(cardSet)
     }
 
     fun getFlashcard(flashcardId: Long) = flashcardDao.getFlashcard(flashcardId)
 
-    fun getFlashcards(deckId: Long) = flashcardDao.getFlashcards(deckId)
+    fun getFlashcards(cardSetId: Long) = flashcardDao.getFlashcards(cardSetId)
 
-    fun insertFlashcard(flashcard: Flashcard) {
-        CoroutineScope(Dispatchers.IO).launch {
-            flashcard.id = flashcardDao.insertFlashcard(flashcard)
-        }
+    suspend fun insertFlashcard(flashcard: Flashcard): Long {
+        val id = flashcardDao.insertFlashcard(flashcard)
+        flashcard.id = id
+        return id
     }
 
-    fun updateFlashcard(flashcard: Flashcard) {
-        CoroutineScope(Dispatchers.IO).launch {
-            flashcardDao.updateFlashcard(flashcard)
-        }
+    suspend fun updateFlashcard(flashcard: Flashcard) {
+        flashcardDao.updateFlashcard(flashcard)
     }
 
-    fun deleteQuestion(flashcard: Flashcard) {
-        CoroutineScope(Dispatchers.IO).launch {
-            flashcardDao.deleteFlashcard(flashcard)
-        }
+    suspend fun deleteFlashcard(flashcard: Flashcard) {
+        flashcardDao.deleteFlashcard(flashcard)
     }
 
-    private fun addTestData() {
-        var deckId = deckDao.createDeck(Deck(name = "Test Deck 1"))
+    private suspend fun addTestData() {
+        var cardSetId = cardSetDao.createCardSet(CardSet(name = "Test CardSet 1"))
         flashcardDao.insertFlashcard(
             flashcard = Flashcard(
-                frontText = "deck 1 flashcard 1 front text",
-                backText = "deck 1 flashcard 1 back text!!!",
-                deckId = deckId
+                frontText = "cardSet 1 flashcard 1 front text",
+                backText = "cardSet 1 flashcard 1 back text!!!",
+                setId = cardSetId,
             )
         )
         flashcardDao.insertFlashcard(
             flashcard = Flashcard(
-                frontText = "deck 1 flashcard 2222 front text",
-                backText = "deck 1 flashcard 22222 back text!!!",
-                deckId = deckId
+                frontText = "cardSet 1 flashcard 2222 front text",
+                backText = "cardSet 1 flashcard 22222 back text!!!",
+                setId = cardSetId,
             )
         )
         flashcardDao.insertFlashcard(
             flashcard = Flashcard(
                 frontText = "d1 flashcard 3 front text",
                 backText = "d1 flashcard 3 back text!!!",
-                deckId = deckId
+                setId = cardSetId,
             )
         )
 
-        deckId = deckDao.createDeck(Deck(name = "Test D2"))
+        cardSetId = cardSetDao.createCardSet(CardSet(name = "Test D2"))
         flashcardDao.insertFlashcard(
             flashcard = Flashcard(
                 frontText = "scooby dooby doo",
                 backText = "where are you",
-                deckId = deckId
+                setId = cardSetId,
             )
         )
 
-        deckDao.createDeck(Deck(name = "Chinese"))
-        deckDao.createDeck(Deck(name = "Biology"))
-        deckDao.createDeck(Deck(name = "Theater 212"))
+        cardSetDao.createCardSet(CardSet(name = "Chinese"))
+        cardSetDao.createCardSet(CardSet(name = "Biology"))
+        cardSetDao.createCardSet(CardSet(name = "Theater 212"))
     }
 }

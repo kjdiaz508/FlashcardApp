@@ -1,3 +1,5 @@
+package dev.kjdz.flashcardapp.ui.navigation
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
@@ -17,12 +19,12 @@ sealed class Routes {
 
     @Serializable
     data class Deck(
-        val deckId: Int
+        val setId: Long
     )
 
     @Serializable
     data class Review(
-        val deckId: Int
+        val setId: Long
     )
 }
 

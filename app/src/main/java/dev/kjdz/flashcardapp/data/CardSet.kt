@@ -4,9 +4,11 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity
-data class Deck(
+data class CardSet(
     @PrimaryKey(autoGenerate = true)
     var id: Long = 0,
 
-    var name: String
+    var name: String,
+    var imageUri: String? = null,
+    var description: String? = null,
 )

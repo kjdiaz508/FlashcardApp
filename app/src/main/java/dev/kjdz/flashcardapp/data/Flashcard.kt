@@ -8,13 +8,14 @@ import androidx.room.PrimaryKey
 @Entity(
     foreignKeys = [
         ForeignKey(
-            entity = Deck::class,
+            entity = CardSet::class,
             parentColumns = ["id"],
-            childColumns = ["deck_id"],
+            childColumns = ["set_id"],
             onDelete = ForeignKey.CASCADE
         )
     ]
 )
+
 data class Flashcard(
     @PrimaryKey(autoGenerate = true)
     var id: Long = 0,
@@ -22,6 +23,8 @@ data class Flashcard(
     var frontText: String,
     var backText: String,
 
-    @ColumnInfo(name = "deck_id")
-    var deckId: Long
+    @ColumnInfo(name = "set_id")
+    var setId: Long,
+
+    var imageUri: String? = null,
 )
