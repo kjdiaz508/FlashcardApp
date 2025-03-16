@@ -1,5 +1,12 @@
 package dev.kjdz.flashcardapp.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -16,24 +23,59 @@ import dev.kjdz.flashcardapp.ui.components.BottomNavigationBar
 import dev.kjdz.flashcardapp.ui.components.FlashcardTopAppBar
 import dev.kjdz.flashcardapp.ui.navigation.Routes
 import dev.kjdz.flashcardapp.ui.viewmodels.CreateViewModel
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.compose.AsyncImage
+import dev.kjdz.flashcardapp.ui.components.BottomOutlineTextField
 import dev.kjdz.flashcardapp.ui.theme.FlashcardAppTheme
 import dev.kjdz.flashcardapp.ui.viewmodels.FlashcardUiState
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CreateScreen(
     viewModel: CreateViewModel = viewModel(factory = CreateViewModel.Factory),
     navController: NavController,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var imagePickerCallback by remember { mutableStateOf<((Uri?) -> Unit)?>(null) }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(uri, flag)
+        }
+        imagePickerCallback?.invoke(uri)
+        imagePickerCallback = null
+    }
+
+    fun launchImagePicker(onResult: (Uri?) -> Unit) {
+        imagePickerCallback = onResult
+        imagePickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
 
     Scaffold(
         topBar = {
             FlashcardTopAppBar(
                 title = "Create New Set",
-                onUpClick = { navController.navigateUp()  },
+                onUpClick = { navController.navigateUp() },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            viewModel.saveCardSet()
+                            viewModel.clearData()
+                        },
+                        enabled = uiState.cardSetName.isNotBlank()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Save Set",
+                        )
+                    }
+                }
             )
         },
         bottomBar = {
@@ -46,34 +88,59 @@ fun CreateScreen(
             FloatingAddCardButton(onClick = { viewModel.addCard() })
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(18.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CardSetInfoSection(
-                cardSetName = uiState.cardSetName,
-                cardSetDescription = uiState.cardSetDescription,
-                onCardSetNameChange = viewModel::updateCardSetName,
-                onCardSetDescriptionChange = viewModel::updateCardSetDescription
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SaveCardSetButton(
-                enabled = uiState.cardSetName.isNotBlank(),
-                onClick = { viewModel.saveCardSet() }
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            FlashcardsSection(
-                cards = uiState.cards,
-                onRemoveCard = { index -> viewModel.removeCard(index) },
-                onUpdateFront = { index, text -> viewModel.updateCardFrontText(index, text) },
-                onUpdateBack = { index, text -> viewModel.updateCardBackText(index, text) }
-            )
+            item {
+                CardSetInfoSection(
+                    cardSetName = uiState.cardSetName,
+                    cardSetDescription = uiState.cardSetDescription,
+                    cardSetImage = uiState.cardSetImageUri,
+                    onCardSetNameChange = viewModel::updateCardSetName,
+                    onCardSetDescriptionChange = viewModel::updateCardSetDescription,
+                    onSelectImage = {
+                        launchImagePicker { uri: Uri? ->
+                            viewModel.updateCardSetImageUri(uri?.toString())
+                        }
+                    },
+                )
+            }
+            item { Text(
+                text = "Flashcards (${uiState.cards.size})",
+                style = MaterialTheme.typography.titleMedium,
+            ) }
+            if (uiState.cards.isEmpty()){
+                item {
+                    Text(
+                        text = "No cards added yet. Use the '+' button below!",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                itemsIndexed(uiState.cards) { index, card ->
+                    Flashcard(
+                        index = index,
+                        card = card,
+                        onRemove = {viewModel.removeCard(index)},
+                        onUpdateFront = { text -> viewModel.updateCardFrontText(index, text) },
+                        onUpdateBack = { text -> viewModel.updateCardBackText(index, text) },
+                        onSelectCardImage = {
+                            launchImagePicker { uri: Uri? ->
+                                viewModel.updateCardImageUri(index, uri?.toString())
+                            }
+                        },
+                        modifier = Modifier.animateItem(fadeOutSpec = null, fadeInSpec = null)
+                    )
+                }
+            }
+            item {
+                Spacer(Modifier.height(72.dp))
+            }
         }
     }
 }
@@ -82,46 +149,57 @@ fun CreateScreen(
 fun CardSetInfoSection(
     cardSetName: String,
     cardSetDescription: String,
+    cardSetImage: String?,
     onCardSetNameChange: (String) -> Unit,
     onCardSetDescriptionChange: (String) -> Unit,
+    onSelectImage: () -> Unit,
 ) {
-    Text(
-        text = "Set Information",
-        style = MaterialTheme.typography.headlineSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 8.dp)
-    )
-
-    OutlinedTextField(
-        value = cardSetName,
-        onValueChange = onCardSetNameChange,
-        label = { Text("Set Name *") },
-        modifier = Modifier.fillMaxWidth(),
-        leadingIcon = {
-            Icon(Icons.Default.DriveFileRenameOutline, contentDescription = "Set name")
-        },
-        isError = cardSetName.isBlank(),
-        supportingText = {
-            if (cardSetName.isBlank()) {
-                Text("Required field")
+    Column(
+        Modifier
+            .fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier =  Modifier
+                    .size(120.dp)
+                    .padding(4.dp)
+                    .clickable {
+                        onSelectImage()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (cardSetImage != null) {
+                    // Display the selected image for the card
+                    // Example: Image(painter = rememberAsyncImagePainter(card.cardImageUri), contentDescription = "Card image", modifier = Modifier.fillMaxSize())
+                    AsyncImage(
+                        model = cardSetImage,
+                        contentDescription = "Deck Image",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Select card image",
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
+            BottomOutlineTextField(
+                placeholder = "Subject / Title",
+                label = "Set Name *",
+                value = cardSetName,
+                onValueChange = onCardSetNameChange
+            )
         }
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    OutlinedTextField(
-        value = cardSetDescription,
-        onValueChange = onCardSetDescriptionChange,
-        label = { Text("Description") },
-        modifier = Modifier.fillMaxWidth(),
-        leadingIcon = {
-            Icon(Icons.Default.Description, contentDescription = "Description")
-        },
-        placeholder = { Text("Enter a brief description for your set") },
-        singleLine = false,
-        minLines = 3
-    )
+        BottomOutlineTextField(
+            placeholder = "What is your set about?",
+            label = "Description",
+            value = cardSetDescription,
+            onValueChange = onCardSetDescriptionChange
+        )
+    }
 }
 
 @Preview(showBackground = true)
@@ -132,99 +210,40 @@ fun CardSetInfoPreview() {
             CardSetInfoSection(
                 cardSetName = "Wowaweewa",
                 cardSetDescription = "stuff here",
+                cardSetImage = null,
                 onCardSetNameChange = {},
                 onCardSetDescriptionChange = {},
+                onSelectImage = {},
             )
         }
     }
 }
 
 @Composable
-fun SaveCardSetButton(
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(34.dp),
-        enabled = enabled,
-    ) {
-        Text("Save set", style = MaterialTheme.typography.labelLarge)
-    }
-}
-
-@Composable
-fun FlashcardsSection(
-    cards: List<FlashcardUiState>, // Replace YourCardType with your actual card type
-    onRemoveCard: (Int) -> Unit,
-    onUpdateFront: (Int, String) -> Unit,
-    onUpdateBack: (Int, String) -> Unit,
-) {
-    Text(
-        text = "Flashcards (${cards.size})",
-        style = MaterialTheme.typography.headlineSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 16.dp)
-    )
-
-    if (cards.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "No cards added yet. Tap the '+' button below to start!",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            itemsIndexed(cards) { index, card ->
-                FlashcardCard(
-                    index = index,
-                    card = card,
-                    onRemove = { onRemoveCard(index) },
-                    onUpdateFront = { text -> onUpdateFront(index, text) },
-                    onUpdateBack = { text -> onUpdateBack(index, text) },
-                    modifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun FlashcardCard(
+fun Flashcard(
     index: Int,
-    card: FlashcardUiState, // Replace YourCardType with your actual card type
+    card: FlashcardUiState,
     onRemove: () -> Unit,
     onUpdateFront: (String) -> Unit,
     onUpdateBack: (String) -> Unit,
+    onSelectCardImage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        modifier = modifier
+            .fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
+        Column (
+            Modifier.padding(8.dp)
+        ) {
+            Row (
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = "Card ${index + 1}",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
                 IconButton(
@@ -232,39 +251,80 @@ fun FlashcardCard(
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = Icons.Default.Close,
                         contentDescription = "Remove card",
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = card.frontText,
-                onValueChange = onUpdateFront,
-                label = { Text("Front Content") },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Enter question/prompt") },
-                leadingIcon = {
-                    Icon(Icons.Default.QuestionAnswer, contentDescription = "Front content")
-                }
+            Text(
+                text = "Front Content",
+                style = MaterialTheme.typography.labelMedium,
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = card.backText,
-                onValueChange = onUpdateBack,
-                label = { Text("Back Content") },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Enter answer/explanation") },
-                leadingIcon = {
-                    Icon(Icons.Default.AllInbox, contentDescription = "Back content")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =  Modifier
+                        .size(80.dp)
+                        .clickable { onSelectCardImage() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (card.cardImageUri != null) {
+                        AsyncImage(
+                            model = card.cardImageUri,
+                            contentDescription = "Flashcard Image",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Select card image",
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
                 }
+                BottomOutlineTextField(
+                    value = card.frontText,
+                    label = "Front Text",
+                    onValueChange = onUpdateFront,
+                    placeholder = "Prompt/Question"
+                )
+            }
+            Text(
+                text = "Back Content",
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Spacer(Modifier.height(6.dp))
+            BottomOutlineTextField(
+                value = card.backText,
+                label = "Back Text",
+                onValueChange = onUpdateBack,
+                placeholder = "Answer/Description"
             )
         }
+    }
+}
+
+
+@Preview
+@Composable
+fun FlashcardPreview() {
+    FlashcardAppTheme {
+        Flashcard(
+            index = 1,
+            card = FlashcardUiState(
+                1,
+                "Test Front Text",
+                backText = "Test Back Text",
+                cardImageUri = null
+            ),
+            onRemove = {},
+            onUpdateFront = {},
+            onUpdateBack = {},
+            onSelectCardImage = {},
+        )
     }
 }
 

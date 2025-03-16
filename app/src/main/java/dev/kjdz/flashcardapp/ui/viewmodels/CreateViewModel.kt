@@ -31,6 +31,10 @@ class CreateViewModel(
         _uiState.value = _uiState.value.copy(cardSetName = name)
     }
 
+    fun clearData() {
+        _uiState.value = CreateCardSetUiState()
+    }
+
     /**
      * Update cardSet description in UI state
      */
@@ -89,10 +93,15 @@ class CreateViewModel(
         }
     }
 
-    /**
-     * Save the cardSet and its cards to the DB.
-     * Make sure your repository has a function that returns the new cardSet ID.
-     */
+    fun updateCardImageUri(index: Int, newUri: String?) {
+        val updatedCards = _uiState.value.cards.toMutableList()
+        if (index in updatedCards.indices) {
+            val oldCard = updatedCards[index]
+            updatedCards[index] = oldCard.copy(cardImageUri = newUri)
+            _uiState.value = _uiState.value.copy(cards = updatedCards)
+        }
+    }
+
     fun saveCardSet() {
         val currentState = _uiState.value
 

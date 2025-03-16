@@ -32,6 +32,10 @@ class FlashcardRepository(
 
     fun getCardSet(cardSetId: Long) = cardSetDao.getCardSet(cardSetId)
 
+    suspend fun updateCardSet(cardSet: CardSet) {
+        cardSetDao.updateCardSet(cardSet)
+    }
+
     fun getCardSets() = cardSetDao.getAllCardSets()
 
     suspend fun createCardSet(cardSet: CardSet): Long {

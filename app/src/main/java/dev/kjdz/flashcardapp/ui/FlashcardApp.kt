@@ -11,9 +11,12 @@ import androidx.navigation.compose.rememberNavController
 import dev.kjdz.flashcardapp.ui.navigation.Routes
 import dev.kjdz.flashcardapp.ui.screens.CreateScreen
 import dev.kjdz.flashcardapp.ui.screens.HomeScreen
+import dev.kjdz.flashcardapp.ui.screens.ReviewScreen
 import dev.kjdz.flashcardapp.ui.screens.SettingsScreen
+import dev.kjdz.flashcardapp.ui.screens.ViewSetScreen
 import dev.kjdz.flashcardapp.ui.viewmodels.CreateViewModel
 import dev.kjdz.flashcardapp.ui.viewmodels.HomeViewModel
+import dev.kjdz.flashcardapp.ui.viewmodels.ReviewViewModel
 
 
 @Composable
@@ -22,7 +25,6 @@ fun FlashcardApp() {
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
     val createViewModel: CreateViewModel = viewModel(factory = CreateViewModel.Factory)
 
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
     NavHost(
         navController = navController,
         startDestination = Routes.Home,
@@ -30,11 +32,11 @@ fun FlashcardApp() {
         composable<Routes.Home> {
             HomeScreen(homeViewModel, navController)
         }
-        composable<Routes.Deck> {
-            Text("Deck")
+        composable<Routes.ViewSet> {
+            ViewSetScreen(navController = navController)
         }
         composable<Routes.Review> {
-            Text("Review")
+            ReviewScreen(navController = navController)
         }
         composable<Routes.Create> {
             CreateScreen(createViewModel, navController)

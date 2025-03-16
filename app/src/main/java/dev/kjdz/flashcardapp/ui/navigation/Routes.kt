@@ -18,7 +18,7 @@ sealed class Routes {
     data object Settings
 
     @Serializable
-    data class Deck(
+    data class ViewSet(
         val setId: Long
     )
 

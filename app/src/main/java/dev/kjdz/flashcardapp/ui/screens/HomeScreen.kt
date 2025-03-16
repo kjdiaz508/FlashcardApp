@@ -47,7 +47,7 @@ fun HomeScreen(
             cardSets = cardSets,
             innerPadding = innerPadding,
             onCardSetClick = { cardSet ->
-                navController.navigate(Routes.Review(setId = cardSet.id))
+                navController.navigate(Routes.ViewSet(setId = cardSet.id))
             },
             onDeleteClick = { cardSet ->
                 viewModel.deleteCardSet(cardSet)
@@ -93,10 +93,12 @@ fun CardSetCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(120.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 if (cardSet.imageUri != null) {
                     AsyncImage(
@@ -105,18 +107,11 @@ fun CardSetCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = "Placeholder",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Placeholder",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
                 IconButton(
                     onClick = onDeleteClick,

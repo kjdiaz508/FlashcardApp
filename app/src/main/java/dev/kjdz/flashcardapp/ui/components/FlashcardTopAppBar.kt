@@ -1,5 +1,6 @@
 package dev.kjdz.flashcardapp.ui.components
 
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +16,8 @@ import androidx.compose.runtime.Composable
 @Composable
 fun FlashcardTopAppBar(
     title: String = "",
-    onUpClick: () -> Unit = {}
+    onUpClick: () -> Unit = {},
+    actions: @Composable() (RowScope.() -> Unit) = {}
 ) {
     TopAppBar(
         title = { Text(title) },
@@ -24,9 +26,6 @@ fun FlashcardTopAppBar(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Go Back")
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            titleContentColor = MaterialTheme.colorScheme.primary
-        )
+        actions = actions,
     )
 }
