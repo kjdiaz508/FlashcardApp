@@ -1,8 +1,12 @@
 package dev.kjdz.flashcardapp.ui.screens
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Environment
+import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -26,10 +30,13 @@ import dev.kjdz.flashcardapp.ui.viewmodels.CreateViewModel
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import dev.kjdz.flashcardapp.ui.components.BottomOutlineTextField
 import dev.kjdz.flashcardapp.ui.theme.FlashcardAppTheme
 import dev.kjdz.flashcardapp.ui.viewmodels.FlashcardUiState
+import java.io.File
 
 @Composable
 fun CreateScreen(
@@ -38,6 +45,8 @@ fun CreateScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
     var imagePickerCallback by remember { mutableStateOf<((Uri?) -> Unit)?>(null) }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -45,9 +54,43 @@ fun CreateScreen(
         val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
         if (uri != null) {
             context.contentResolver.takePersistableUriPermission(uri, flag)
+            imagePickerCallback?.invoke(uri)
         }
-        imagePickerCallback?.invoke(uri)
         imagePickerCallback = null
+    }
+
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            imagePickerCallback?.invoke(cameraImageUri)
+        }
+        imagePickerCallback = null
+        cameraImageUri = null
+    }
+
+    fun createImageUri(context: Context): Uri {
+        val filename = "IMG_${System.currentTimeMillis()}.jpg"
+        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val file = File(storageDir, filename)
+        return FileProvider.getUriForFile(
+            context,
+            "dev.kjdz.flashcardapp.fileprovider",
+            file
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // If permission is granted, launch the camera
+            cameraImageUri = createImageUri(context)
+            cameraImageUri?.let { cameraLauncher.launch(it) }
+        } else {
+            Log.e("CreateScreen", "Camera permission denied")
+        }
     }
 
     fun launchImagePicker(onResult: (Uri?) -> Unit) {
@@ -88,6 +131,40 @@ fun CreateScreen(
             FloatingAddCardButton(onClick = { viewModel.addCard() })
         }
     ) { innerPadding ->
+        if (showImageSourceDialog) {
+            AlertDialog(
+                onDismissRequest = { showImageSourceDialog = false },
+                title = { Text("Choose Image Source") },
+                text = { Text("Select camera to take a new photo or gallery to choose an existing one.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                                PackageManager.PERMISSION_GRANTED) {
+                                // Permission is already granted, launch camera
+                                cameraImageUri = createImageUri(context)
+                                cameraImageUri?.let { cameraLauncher.launch(it) }
+                            } else {
+                                // Request permission
+                                permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
+                    ) { Text("Take Photo") }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                    ) { Text("Choose from Gallery") }
+                }
+            )
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -103,9 +180,10 @@ fun CreateScreen(
                     onCardSetNameChange = viewModel::updateCardSetName,
                     onCardSetDescriptionChange = viewModel::updateCardSetDescription,
                     onSelectImage = {
-                        launchImagePicker { uri: Uri? ->
+                        imagePickerCallback = { uri ->
                             viewModel.updateCardSetImageUri(uri?.toString())
                         }
+                        showImageSourceDialog = true
                     },
                 )
             }
@@ -130,9 +208,10 @@ fun CreateScreen(
                         onUpdateFront = { text -> viewModel.updateCardFrontText(index, text) },
                         onUpdateBack = { text -> viewModel.updateCardBackText(index, text) },
                         onSelectCardImage = {
-                            launchImagePicker { uri: Uri? ->
+                            imagePickerCallback = { uri ->
                                 viewModel.updateCardImageUri(index, uri?.toString())
                             }
+                            showImageSourceDialog = true
                         },
                         modifier = Modifier.animateItem(fadeOutSpec = null, fadeInSpec = null)
                     )

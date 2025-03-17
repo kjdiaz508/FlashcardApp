@@ -1,7 +1,12 @@
 package dev.kjdz.flashcardapp.ui.screens
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Environment
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -27,6 +34,7 @@ import dev.kjdz.flashcardapp.ui.components.FlashcardTopAppBar
 import dev.kjdz.flashcardapp.ui.navigation.Routes
 import dev.kjdz.flashcardapp.ui.viewmodels.FlashcardUiState
 import dev.kjdz.flashcardapp.ui.viewmodels.ViewSetViewModel
+import java.io.File
 
 @Composable
 fun ViewSetScreen(
@@ -35,17 +43,52 @@ fun ViewSetScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
     var imagePickerCallback by remember { mutableStateOf<((Uri?) -> Unit)?>(null) }
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        uri?.let { context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-        imagePickerCallback?.invoke(uri)
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(uri, flag)
+            imagePickerCallback?.invoke(uri)
+        }
+        imagePickerCallback = null
     }
 
-    fun launchImagePicker(callback: (Uri?) -> Unit) {
-        imagePickerCallback = callback
-        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            imagePickerCallback?.invoke(cameraImageUri)
+        }
+        imagePickerCallback = null
+        cameraImageUri = null
+    }
+
+    fun createImageUri(context: Context): Uri {
+        val filename = "IMG_${System.currentTimeMillis()}.jpg"
+        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val file = File(storageDir, filename)
+        return FileProvider.getUriForFile(
+            context,
+            "dev.kjdz.flashcardapp.fileprovider",
+            file
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // If permission is granted, launch the camera
+            cameraImageUri = createImageUri(context)
+            cameraImageUri?.let { cameraLauncher.launch(it) }
+        } else {
+            Log.e("CreateScreen", "Camera permission denied")
+        }
     }
 
     Scaffold(
@@ -77,6 +120,39 @@ fun ViewSetScreen(
             }
         }
     ) { innerPadding ->
+        if (showImageSourceDialog) {
+            AlertDialog(
+                onDismissRequest = { showImageSourceDialog = false },
+                title = { Text("Choose Image Source") },
+                text = { Text("Select camera to take a new photo or gallery to choose an existing one.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                                PackageManager.PERMISSION_GRANTED) {
+                                // Permission is already granted, launch camera
+                                cameraImageUri = createImageUri(context)
+                                cameraImageUri?.let { cameraLauncher.launch(it) }
+                            } else {
+                                // Request permission
+                                permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
+                    ) { Text("Take Photo") }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                    ) { Text("Choose from Gallery") }
+                }
+            )
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -90,8 +166,12 @@ fun ViewSetScreen(
                     isEditing = uiState.isEditing,
                     onNameChange = viewModel::updateCardSetName,
                     onDescChange = viewModel::updateCardSetDescription,
-                    onImageSelect = { uri -> viewModel.updateCardSetImageUri(uri?.toString()) },
-                    launchImagePicker = ::launchImagePicker
+                    onSelectImage = {
+                        imagePickerCallback = { uri ->
+                            viewModel.updateCardSetImageUri(uri?.toString())
+                        }
+                        showImageSourceDialog = true
+                    },
                 )
             }
 
@@ -116,8 +196,12 @@ fun ViewSetScreen(
                     onRemove = { viewModel.removeCard(index) },
                     onFrontChange = { viewModel.updateCardFrontText(index, it) },
                     onBackChange = { viewModel.updateCardBackText(index, it) },
-                    onImageSelect = { uri -> viewModel.updateCardImageUri(index, uri?.toString()) },
-                    launchImagePicker = ::launchImagePicker
+                    onSelectImage = {
+                        imagePickerCallback = { uri ->
+                            viewModel.updateCardImageUri(index, uri?.toString())
+                        }
+                        showImageSourceDialog = true
+                    },
                 )
             }
         }
@@ -130,8 +214,7 @@ private fun CardSetInfoSection(
     isEditing: Boolean,
     onNameChange: (String) -> Unit,
     onDescChange: (String) -> Unit,
-    onImageSelect: (Uri?) -> Unit,
-    launchImagePicker: (callback: (Uri?) -> Unit) -> Unit
+    onSelectImage: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,7 +222,7 @@ private fun CardSetInfoSection(
                 Modifier
                     .size(120.dp)
                     .clickable(enabled = isEditing) {
-                        launchImagePicker { uri -> onImageSelect(uri) }
+                        onSelectImage()
                     }
                     .padding(4.dp),
                 contentAlignment = Alignment.Center
@@ -175,8 +258,7 @@ private fun FlashcardItem(
     onRemove: () -> Unit,
     onFrontChange: (String) -> Unit,
     onBackChange: (String) -> Unit,
-    onImageSelect: (Uri?) -> Unit,
-    launchImagePicker: (callback: (Uri?) -> Unit) -> Unit
+    onSelectImage: () -> Unit,
 ) {
     Card(modifier = Modifier
         .fillMaxWidth(),
@@ -208,7 +290,7 @@ private fun FlashcardItem(
                     Modifier
                         .size(80.dp)
                         .clickable(enabled = isEditing) {
-                            launchImagePicker { uri -> onImageSelect(uri) }
+                            onSelectImage()
                         },
                     contentAlignment = Alignment.Center
                 ) {

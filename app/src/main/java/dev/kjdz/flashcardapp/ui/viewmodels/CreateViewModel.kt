@@ -152,7 +152,7 @@ data class CreateCardSetUiState(
     val cardSetName: String = "",
     val cardSetDescription: String = "",
     val cardSetImageUri: String? = null,
-    val cards: List<FlashcardUiState> = emptyList()
+    val cards: List<FlashcardUiState> = emptyList(),
 )
 
 data class FlashcardUiState(
