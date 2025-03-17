@@ -45,18 +45,15 @@ fun CreateScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var showImageSourceDialog by remember { mutableStateOf(false) }
-    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
-    var imagePickerCallback by remember { mutableStateOf<((Uri?) -> Unit)?>(null) }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
         if (uri != null) {
             context.contentResolver.takePersistableUriPermission(uri, flag)
-            imagePickerCallback?.invoke(uri)
+            uiState.imagePickerCallback?.invoke(uri)
         }
-        imagePickerCallback = null
+        viewModel.setImagePickerCallback(null)
     }
 
 
@@ -64,10 +61,10 @@ fun CreateScreen(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            imagePickerCallback?.invoke(cameraImageUri)
+            uiState.imagePickerCallback?.invoke(uiState.cameraImageUri)
         }
-        imagePickerCallback = null
-        cameraImageUri = null
+        viewModel.setImagePickerCallback(null)
+        viewModel.setCameraImageUri(null)
     }
 
     fun createImageUri(context: Context): Uri {
@@ -86,15 +83,15 @@ fun CreateScreen(
     ) { isGranted ->
         if (isGranted) {
             // If permission is granted, launch the camera
-            cameraImageUri = createImageUri(context)
-            cameraImageUri?.let { cameraLauncher.launch(it) }
+            viewModel.setCameraImageUri(createImageUri(context))
+            uiState.cameraImageUri?.let { cameraLauncher.launch(it) }
         } else {
             Log.e("CreateScreen", "Camera permission denied")
         }
     }
 
     fun launchImagePicker(onResult: (Uri?) -> Unit) {
-        imagePickerCallback = onResult
+        viewModel.setImagePickerCallback(onResult)
         imagePickerLauncher.launch(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
         )
@@ -131,20 +128,21 @@ fun CreateScreen(
             FloatingAddCardButton(onClick = { viewModel.addCard() })
         }
     ) { innerPadding ->
-        if (showImageSourceDialog) {
+        if (uiState.showImageSourceDialog) {
             AlertDialog(
-                onDismissRequest = { showImageSourceDialog = false },
+                onDismissRequest = { viewModel.setShowImageDialog(false) },
                 title = { Text("Choose Image Source") },
                 text = { Text("Select camera to take a new photo or gallery to choose an existing one.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            showImageSourceDialog = false
+                            viewModel.setShowImageDialog(false)
                             if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                                 PackageManager.PERMISSION_GRANTED) {
                                 // Permission is already granted, launch camera
-                                cameraImageUri = createImageUri(context)
-                                cameraImageUri?.let { cameraLauncher.launch(it) }
+                                val imageUri = createImageUri(context)
+                                viewModel.setCameraImageUri(imageUri)
+                                cameraLauncher.launch(imageUri)
                             } else {
                                 // Request permission
                                 permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -155,7 +153,7 @@ fun CreateScreen(
                 dismissButton = {
                     TextButton(
                         onClick = {
-                            showImageSourceDialog = false
+                            viewModel.setShowImageDialog(false)
                             imagePickerLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
@@ -180,10 +178,10 @@ fun CreateScreen(
                     onCardSetNameChange = viewModel::updateCardSetName,
                     onCardSetDescriptionChange = viewModel::updateCardSetDescription,
                     onSelectImage = {
-                        imagePickerCallback = { uri ->
+                        viewModel.setImagePickerCallback { uri ->
                             viewModel.updateCardSetImageUri(uri?.toString())
                         }
-                        showImageSourceDialog = true
+                        viewModel.setShowImageDialog(true)
                     },
                 )
             }
@@ -208,10 +206,10 @@ fun CreateScreen(
                         onUpdateFront = { text -> viewModel.updateCardFrontText(index, text) },
                         onUpdateBack = { text -> viewModel.updateCardBackText(index, text) },
                         onSelectCardImage = {
-                            imagePickerCallback = { uri ->
+                            viewModel.setImagePickerCallback { uri ->
                                 viewModel.updateCardImageUri(index, uri?.toString())
                             }
-                            showImageSourceDialog = true
+                            viewModel.setShowImageDialog(true)
                         },
                         modifier = Modifier.animateItem(fadeOutSpec = null, fadeInSpec = null)
                     )

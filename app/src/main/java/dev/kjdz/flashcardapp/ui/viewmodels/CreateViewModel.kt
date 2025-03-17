@@ -135,6 +135,15 @@ class CreateViewModel(
             }
         }
     }
+    fun setShowImageDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showImageSourceDialog = show)
+    }
+    fun setCameraImageUri(imgUri: Uri?) {
+        _uiState.value = _uiState.value.copy(cameraImageUri = imgUri)
+    }
+    fun setImagePickerCallback(callback: ((Uri?) -> Unit)?){
+        _uiState.value = _uiState.value.copy(imagePickerCallback = callback)
+    }
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
@@ -153,6 +162,9 @@ data class CreateCardSetUiState(
     val cardSetDescription: String = "",
     val cardSetImageUri: String? = null,
     val cards: List<FlashcardUiState> = emptyList(),
+    val showImageSourceDialog: Boolean = false,
+    val cameraImageUri: Uri? = null,
+    val imagePickerCallback: ((Uri?) -> Unit)? = null,
 )
 
 data class FlashcardUiState(

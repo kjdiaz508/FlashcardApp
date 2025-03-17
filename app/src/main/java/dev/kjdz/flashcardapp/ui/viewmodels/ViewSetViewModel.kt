@@ -1,5 +1,6 @@
 package dev.kjdz.flashcardapp.ui.viewmodels
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -41,6 +42,9 @@ class ViewSetViewModel(
     private val isEditing = MutableStateFlow(false)
     private val updatedCardSet = MutableStateFlow(CardSet(name = ""))
     private val updatedCards = MutableStateFlow<List<FlashcardUiState>>(emptyList())
+    private val showImageSourceDialog = MutableStateFlow(false)
+    private val cameraImageUri= MutableStateFlow<Uri?>(null)
+    private val imagePickerCallback = MutableStateFlow<((Uri?) -> Unit)?>(null)
 
     val uiState: StateFlow<ViewSetUiState> = transformedFlow()
         .stateIn(
@@ -54,15 +58,27 @@ class ViewSetViewModel(
         repository.getFlashcards(cardSetId),
         isEditing,
         updatedCardSet,
-        updatedCards
+        updatedCards,
     ) { cardSetFlow, flashcards, editing, updatedSet, updatedFlashcards ->
         val cardSet = cardSetFlow ?: CardSet(name = "")
 
         ViewSetUiState(
             cardSet = if (editing) updatedSet else cardSet,
             cards = if (editing) updatedFlashcards else flashcards.map { it.toUiState() },
-            isEditing = editing
+            isEditing = editing,
         )
+    }.combine(
+        showImageSourceDialog,
+    ) { a, showDiag ->
+        a.copy(showImageSourceDialog = showDiag)
+    }.combine(
+        cameraImageUri,
+    ) { a, imgUri ->
+        a.copy(cameraImageUri = imgUri)
+    }.combine(
+        imagePickerCallback,
+    ) { a, callback ->
+        a.copy(imagePickerCallback = callback)
     }
 
     fun toggleEditMode() {
@@ -130,6 +146,16 @@ class ViewSetViewModel(
         }
     }
 
+    fun setShowImageDialog(show: Boolean) {
+        showImageSourceDialog.value = show
+    }
+    fun setCameraImageUri(imgUri: Uri?) {
+        cameraImageUri.value = imgUri
+    }
+    fun setImagePickerCallback(callback: ((Uri?) -> Unit)?){
+        imagePickerCallback.value = callback
+    }
+
     fun saveChanges() {
         viewModelScope.launch {
             // Update CardSet
@@ -162,7 +188,10 @@ class ViewSetViewModel(
 data class ViewSetUiState(
     val cardSet: CardSet = CardSet(name = ""),
     val cards: List<FlashcardUiState> = emptyList(),
-    val isEditing: Boolean = false
+    val isEditing: Boolean = false,
+    val showImageSourceDialog: Boolean = false,
+    val cameraImageUri: Uri? = null,
+    val imagePickerCallback: ((Uri?) -> Unit)? = null,
 )
 
 private fun Flashcard.toUiState() = FlashcardUiState(
