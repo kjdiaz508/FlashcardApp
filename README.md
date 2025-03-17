@@ -30,6 +30,7 @@ This Flashcard App allows users to create, review, and quiz themselves using fla
   - Storage access for saving and retrieving images.
 
 ## Additional comments
+- There wasn't a built in text field with the design that I wanted to achieve so I built my own `BottomOutlineTextField` using the material3 api.
 - Room databse took a long time to figure out, the book was not extremely helpful because they left out a lot of information about how to add the proper version of the dependency and some information was outdated.
 - I may have missed it, but the book seems to skip over how to request permissions during runtime, so I had to figure out how to do that.
 - I followed the code style used in the book as closely as I could, but I went simpler if something didn't make sense to me.
