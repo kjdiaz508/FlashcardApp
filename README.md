@@ -4,7 +4,8 @@
 This Flashcard App allows users to create, review, and quiz themselves using flashcards that include both text and images. Users can take pictures with their phone camera or select images from their gallery to attach to flashcards. The app features a study mode, a create mode, and settings for customization. It is built with Jetpack Compose for UI and leverages Android's media storage and database capabilities.
 
 ## Figma Design
-![Design](https://github.com/user-attachments/assets/e95d09fd-c1e8-410f-954e-a9fabd5c4ed9)
+![design](https://github.com/user-attachments/assets/216e907b-d621-4071-bdd7-0a1f33e3d607)
+
 
 ## Features
 - **Room Database** for storing flashcards and decks persistently.
