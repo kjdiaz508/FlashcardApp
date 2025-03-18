@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
@@ -35,8 +34,8 @@ class ReviewViewModel(
 
     private val cardSetId: Long = savedStateHandle.toRoute<Routes.Review>().setId
 
-    private val _uiState = MutableStateFlow(StudyDeckUiState())
-    val uiState: StateFlow<StudyDeckUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(StudySetUiState())
+    val uiState: StateFlow<StudySetUiState> = _uiState.asStateFlow()
 
     init {
         loadFlashcards()
@@ -69,7 +68,7 @@ class ReviewViewModel(
     }
 }
 
-data class StudyDeckUiState(
+data class StudySetUiState(
     val cardSetName: String = "",
     val flashcards: List<FlashcardUiState> = emptyList(),
     val flippedCards: Map<Long, Boolean> = emptyMap()

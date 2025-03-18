@@ -252,7 +252,7 @@ fun CardSetInfoSection(
                     // Example: Image(painter = rememberAsyncImagePainter(card.cardImageUri), contentDescription = "Card image", modifier = Modifier.fillMaxSize())
                     AsyncImage(
                         model = cardSetImage,
-                        contentDescription = "Deck Image",
+                        contentDescription = "Set Image",
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {

@@ -179,7 +179,7 @@ fun ViewSetScreen(
                         onClick = { navController.navigate(Routes.Review(uiState.cardSet.id)) },
                         Modifier.fillMaxWidth()
                     ) {
-                        Text("Study Deck")
+                        Text("Study Set")
                     }
                 }
             }
