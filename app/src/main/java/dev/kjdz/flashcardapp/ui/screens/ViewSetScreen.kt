@@ -202,6 +202,9 @@ fun ViewSetScreen(
                     },
                 )
             }
+            item {
+                Spacer(Modifier.height(72.dp))
+            }
         }
     }
 }
